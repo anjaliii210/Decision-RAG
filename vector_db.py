@@ -1,6 +1,7 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
 from sqlalchemy import text
+from qdrant_client import models
 
 
 class QdrantStorage:
@@ -17,32 +18,74 @@ class QdrantStorage:
         points = [PointStruct(id=ids[i], vector=vectors[i], payload=payloads[i]) for i in range(len(ids))]
         self.client.upsert(self.collection, points=points)
 
-        def search(self, query_vector, top_k: int = 5):
-            results = self.client.search(
-                collection_name=self.collection,
-                query_vector=query_vector,
+    # def search(self, query_vector, top_k: int = 5):
+    #     results = self.client.query_points(
+    #         collection_name=self.collection,
+    #         query=query_vector,
+    #         limit=top_k,
+    #         with_payload=True
+    #     )
+
+    #     # if not results:
+    #     #     raise ValueError("No results found in vector search")
+
+    #     # contexts = []
+    #     # sources = set()
+
+    #     # for r in results:
+    #     #     print("SCORE:", r.score)
+
+    #     #     payload = getattr(r, "payload", {}) or {}
+    #     #     text = payload.get("text", "")
+    #     #     source = payload.get("source", "")
+
+    #     #     if not text:
+    #     #         print("WARNING: Missing text in payload")
+    #     #         continue
+
+    #     #     contexts.append(text)
+    #     #     sources.add(source)
+
+    #     # return {"contexts": contexts, "sources": list(sources)}
+
+    #     points = results.points
+
+    #     contexts = []
+    #     sources = set()
+
+    #     for p in points:
+    #         payload = p.payload or {}
+    #         text = payload.get("text", "")
+    #         source = payload.get("source", "")
+
+    #         if text:    
+    #             contexts.append(text)
+    #             sources.add(source)
+
+    #     return {"contexts": contexts, "sources": list(sources)}
+    
+    def search(self, query_vector, top_k: int = 5):
+        res = self.client.query_points(
+            collection_name=self.collection,
+            query=models.SearchRequest(
+                vector=query_vector,
+                limit=top_k,
                 with_payload=True,
-                limit=top_k
-            )
+            ),
+        )
 
-            if not results:
-                raise ValueError("No results found in vector search")
+        contexts, sources = [], set()
 
-            contexts = []
-            sources = set()
+        for p in res.points:
+            payload = p.payload or {}
+            text = payload.get("text", "")
+            source = payload.get("source", "")
 
-            for r in results:
-                print("SCORE:", r.score)
-
-                payload = getattr(r, "payload", {}) or {}
-                text = payload.get("text", "")
-                source = payload.get("source", "")
-
-                if not text:
-                    print("WARNING: Missing text in payload")
-                    continue
-
+            if text:
                 contexts.append(text)
                 sources.add(source)
 
-            return {"contexts": contexts, "sources": list(sources)}
+        if not contexts:
+            raise ValueError("No results found")
+
+        return {"contexts": contexts, "sources": list(sources)}
