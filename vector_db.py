@@ -66,12 +66,10 @@ class QdrantStorage:
     
     def search(self, query_vector, top_k: int = 5):
         res = self.client.query_points(
-            collection_name=self.collection,
-            query=models.SearchRequest(
-                vector=query_vector,
-                limit=top_k,
-                with_payload=True,
-            ),
+        collection_name=self.collection,
+        query=query_vector,
+        limit=top_k,
+        with_payload=True,
         )
 
         contexts, sources = [], set()
